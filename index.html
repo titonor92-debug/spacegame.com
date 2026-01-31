@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>🚀 Космическая Стрелялка 🚀</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      font-family: 'Segoe UI', sans-serif;
+      color: #eee;
+      text-align: center;
+    }
+    h1 {
+      color: #0ff;
+      text-shadow: 0 0 15px #0ff;
+      margin: 10px;
+    }
+    #instructions {
+      margin: 10px;
+      font-size: 16px;
+      color: #ccc;
+    }
+    canvas {
+      display: block;
+      margin: 20px auto;
+      background: #000;
+      border: 3px solid #0ff;
+      box-shadow: 0 0 20px #0ff;
+    }
+    #score {
+      font-size: 20px;
+      margin-top: 10px;
+      color: #0f0;
+    }
+    #gameOver {
+      font-size: 36px;
+      color: red;
+      display: none;
+      margin-top: 20px;
+      text-shadow: 0 0 15px #f00;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #0ff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      display: none;
+    }
+    button:hover {
+      background: #3ff;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 Космическая Стрелялка 🚀</h1>
+  <div id="instructions">
+    Управление: ← → для движения, ПРОБЕЛ — стрельба.<br>
+    Цель: сбивай врагов, набирай очки и не сталкивайся с ними!
+  </div>
+  <canvas id="gameCanvas" width="800" height="500"></canvas>
+  <div id="score">Очки: 0</div>
+  <div id="gameOver">GAME OVER</div>
+  <button id="restartBtn">Играть снова</button>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreText = document.getElementById("score");
+    const gameOverText = document.getElementById("gameOver");
+    const restartBtn = document.getElementById("restartBtn");
+
+    let player, bullets, enemies, keys, score, gameOver;
+    let stars = [];
+
+    // Создаём звёзды для движущегося фона
+    function initStars() {
+      stars = [];
+      for (let i = 0; i < 100; i++) {
+        stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2 });
+      }
+    }
+
+    function drawStars() {
+      ctx.fillStyle = "#fff";
+      stars.forEach(star => {
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+        star.y += 1; // движение вниз
+        if (star.y > canvas.height) {
+          star.y = 0;
+          star.x = Math.random() * canvas.width;
+        }
+      });
+    }
+
+    function init() {
+      player = { x: 380, y: 440, width: 40, height: 40, speed: 6 };
+      bullets = [];
+      enemies = [];
+      keys = {};
+      score = 0;
+      gameOver = false;
+      scoreText.textContent = "Очки: 0";
+      gameOverText.style.display = "none";
+      restartBtn.style.display = "none";
+      initStars();
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener("keydown", e => keys[e.code] = true);
+    document.addEventListener("keyup", e => keys[e.code] = false);
+
+    document.addEventListener("keydown", e => {
+      if (e.code === "Space" && !gameOver) {
+        bullets.push({ x: player.x + 18, y: player.y, width: 6, height: 20, speed: 8 });
+      }
+    });
+
+    function spawnEnemy() {
+      if (!gameOver) {
+        enemies.push({ x: Math.random() * 760, y: -40, width: 40, height: 40, speed: 3 });
+      }
+    }
+    setInterval(spawnEnemy, 1200);
+
+    function checkCollision(a, b) {
+      return a.x < b.x + b.width && a.x + a.width > b.x &&
+             a.y < b.y + b.height && a.y + a.height > b.y;
+    }
+
+    function gameLoop() {
+      if (gameOver) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Фон со звёздами
+      drawStars();
+
+      // Игрок (корабль)
+      if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+      if (keys["ArrowRight"] && player.x < canvas.width - player.width) player.x += player.speed;
+      ctx.fillStyle = "cyan";
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y + player.height);
+      ctx.lineTo(player.x + player.width / 2, player.y);
+      ctx.lineTo(player.x + player.width, player.y + player.height);
+      ctx.closePath();
+      ctx.fill();
+
+      // Пули (лазеры)
+      ctx.fillStyle = "lime";
+      bullets.forEach((b, i) => {
+        b.y -= b.speed;
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        if (b.y < 0) bullets.splice(i, 1);
+      });
+
+      // Враги (корабли)
+      ctx.fillStyle = "red";
+      enemies.forEach((en, i) => {
+        en.y += en.speed;
+        ctx.beginPath();
+        ctx.moveTo(en.x, en.y);
+        ctx.lineTo(en.x + en.width / 2, en.y + en.height);
+        ctx.lineTo(en.x + en.width, en.y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Столкновение с пулей
+        bullets.forEach((b, j) => {
+          if (checkCollision(b, en)) {
+            enemies.splice(i, 1);
+            bullets.splice(j, 1);
+            score += 10;
+            scoreText.textContent = "Очки: " + score;
+          }
+        });
+
+        // Столкновение с игроком
+        if (checkCollision(player, en)) {
+          gameOver = true;
+          gameOverText.style.display = "block";
+          restartBtn.style.display = "inline-block";
+        }
+
+        if (en.y > canvas.height) enemies.splice(i, 1);
+      });
+
+      if (!gameOver) requestAnimationFrame(gameLoop);
+    }
+
+    restartBtn.addEventListener("click", init);
+
+    init();
+  </script>
+</body>
+</html>
